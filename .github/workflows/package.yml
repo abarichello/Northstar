@@ -1,0 +1,56 @@
+name: Package
+on:
+  push:
+    branches:
+      - main
+
+env:
+  NORTHSTAR_VERSION: "v1.4.0"
+  # NORTHSTAR_VERSION: ${{ secrets.NORTHSTAR_VERSION }}
+
+jobs:
+  build-launcher:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: R2Northstar/NorthstarLauncher
+          ref: ${{ env.NORTHSTAR_VERSION }}
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+      - name: Build
+        run: msbuild /p:Configuration=Release
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: northstar-launcher
+          path: |
+            x64/Release/Northstar.dll
+            x64/Release/wsock32.dll
+            x64/Release/NorthstarLauncher.exe
+            x64/Release/*.txt
+
+  package:
+    needs: build-launcher
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Download compiled launcher
+        uses: actions/download-artifact@v2
+        with:
+          name: northstar-launcher
+          path: northstar-launcher
+      - name: Create folder structure
+        run: |
+          git clone https://github.com/R2Northstar/NorthstarMods northstar-mods -b ${{ env.NORTHSTAR_VERSION }}
+          mkdir -p northstar/R2Northstar/mods
+          mkdir -p northstar/bin/x64_retail
+          mv northstar-launcher/wsock32.dll northstar/bin/x64_retail
+          mv northstar-launcher/* northstar
+          rsync -avr --exclude="Northstar.Coop" --exclude=".git*" northstar-mods/. northstar/R2Northstar/mods
+          rm -rf northstar-launcher
+      - name: Pack
+        uses: actions/upload-artifact@v2
+        with:
+          name: Northstar.release.${{ env.NORTHSTAR_VERSION }}
+          path: northstar
