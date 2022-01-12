@@ -1,8 +1,9 @@
-name: Package
+name: Build
 on:
-  push:
-    branches:
-      - main
+  push
+  # release:
+  #   types:
+  #     - created
 
 env:
   NORTHSTAR_VERSION: "v1.4.0"
@@ -31,7 +32,7 @@ jobs:
             x64/Release/NorthstarLauncher.exe
             x64/Release/*.txt
 
-  package:
+  build-northstar:
     needs: build-launcher
     runs-on: ubuntu-20.04
     steps:
@@ -40,16 +41,31 @@ jobs:
         with:
           name: northstar-launcher
           path: northstar-launcher
-      - name: Create folder structure
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: abarichello/northstar # test
+          ref: package-pipeline # test: ${{ env.NORTHSTAR_VERSION }}
+          path: northstar
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: R2Northstar/NorthstarMods
+          ref: ${{ env.NORTHSTAR_VERSION }}
+          path: northstar-mods
+      - name: Download repositories
         run: |
-          git clone https://github.com/R2Northstar/NorthstarMods northstar-mods -b ${{ env.NORTHSTAR_VERSION }}
+          mv northstar/release/* northstar/.
           mkdir -p northstar/R2Northstar/mods
           mkdir -p northstar/bin/x64_retail
-          mv northstar-launcher/wsock32.dll northstar/bin/x64_retail
+          mv northstar-launcher/wsock32.dll northstar/release/bin/x64_retail
           mv northstar-launcher/* northstar
           rsync -avr --exclude="Northstar.Coop" --exclude=".git*" northstar-mods/. northstar/R2Northstar/mods
+      - name: Cleanup
+        run: |
           rm -rf northstar-launcher
-      - name: Pack
+          cd northstar && rm -rf .git .github *.md LICENSE
+      - name: Upload
         uses: actions/upload-artifact@v2
         with:
           name: Northstar.release.${{ env.NORTHSTAR_VERSION }}
