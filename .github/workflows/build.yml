@@ -24,8 +24,15 @@ jobs:
           sed -i 's/DEV/${{ env.NORTHSTAR_VERSION }}/g' LauncherInjector/resources.rc
           FILEVERSION=$(echo ${{ env.NORTHSTAR_VERSION }} | tr '.' ',' | tr -d '[:alpha:]')
           sed -i "s/0,0,0,0/${FILEVERSION}/g" LauncherInjector/resources.rc
+      - name: Setup bundled plugins
+        uses: actions/checkout@v2
+        with:
+          repository: R2Northstar/NorthstarDiscordRPC
+          path: .
       - name: Build
-        run: msbuild /p:Configuration=Release
+        run: |
+          msbuild /p:Configuration=Release R2Northstar.sln
+          msbuild /p:Configuration=Release NorthstarDiscordRPC.sln
       - name: Upload launcher build as artifact
         uses: actions/upload-artifact@v2
         with:
@@ -35,6 +42,7 @@ jobs:
             x64/Release/wsock32.dll
             x64/Release/NorthstarLauncher.exe
             x64/Release/*.txt
+            x64/Release/R2Northstar/plugins/*.dll
       - name: Upload debug build artifact
         uses: actions/upload-artifact@v2
         with:
@@ -80,6 +88,7 @@ jobs:
         run: |
           mv northstar/release/* northstar/.
           mkdir -p northstar/R2Northstar/mods
+          mkdir -p northstar/R2Northstar/plugins
           mkdir -p northstar/bin/x64_retail
           mv northstar-launcher/wsock32.dll northstar/bin/x64_retail
           unzip NorthstarStubs.zip -d northstar/bin/x64_dedi
